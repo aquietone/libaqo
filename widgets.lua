@@ -26,7 +26,7 @@ end
 function widgets.LockButton(id, locked)
     local lockedIcon = locked and icons.FA_LOCK .. '##' .. id or icons.FA_UNLOCK .. '##' .. id
     if imgui.Button(lockedIcon) then
-        return not locked
+        locked = not locked
     end
     widgets.HelpMarker('Lock or unlock window movement')
     return locked
@@ -271,6 +271,53 @@ function widgets.InputTextLeftLabel(label, id, resultVar, helpText, width, posX,
     if width then imgui.SetNextItemWidth(width) end
     resultVar = imgui.InputText('##'..id, resultVar)
     return resultVar
+end
+
+local COMBO_POPUP_FLAGS = bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize, ImGuiWindowFlags.ChildWindow)
+---Draw a combo box with filterable options
+---@param label string #The label for the combo
+---@param current_value string #The current selected value or filter text for the combo
+---@param options table #The selectable options for the combo
+---@param width? number #The width to be applied to the text field and popup of the combo
+---@return string,boolean #Return the selected value or partial filter text as well as whether the value changed
+function widgets.ComboFiltered(label, current_value, options, width)
+    if width then ImGui.SetNextItemWidth(width) end
+    local result, changed = imgui.InputText(label, current_value, ImGuiInputTextFlags.EnterReturnsTrue)
+    local active = imgui.IsItemActive()
+    local activated = imgui.IsItemActivated()
+    if activated then imgui.OpenPopup('##combopopup'..label) end
+    local itemRectMinX, _ = imgui.GetItemRectMin()
+    local _, itemRectMaxY = imgui.GetItemRectMax()
+    imgui.SetNextWindowPos(itemRectMinX, itemRectMaxY)
+    if width then imgui.SetNextWindowSize(ImVec2(width, -1)) end
+    if imgui.BeginPopup('##combopopup'..label, COMBO_POPUP_FLAGS) then
+        for _,value in ipairs(options) do
+            if imgui.Selectable(value) then
+                result = value
+            end
+        end
+        if changed or (not active and not imgui.IsWindowFocused()) then
+            imgui.CloseCurrentPopup()
+        end
+        imgui.EndPopup()
+    end
+    return result, current_value == result
+end
+
+---Filter values to only include entries with the substring value, for use with ComboFiltered
+---@param value any
+---@param values any
+---@return table #The filtered table of values
+function widgets.Filter(value, values)
+    if value == "" then return values end
+    local filtered = {}
+    for i,v in ipairs(values) do
+        -- substitute special regex characters in value before calling find
+        if v:lower():find(value:lower():gsub('%(.*',''):gsub('%[.*',''):gsub('%%.*','')) then
+            table.insert(filtered, v)
+        end
+    end
+    return filtered
 end
 
 ---Lua port of https://github.com/macroquest/macroquest/blob/90e598564c4d7b0358e8e611c9bf0b01a8eaca6e/src/imgui/ImGuiUtils.cpp#L152
