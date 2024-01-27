@@ -301,7 +301,7 @@ function widgets.ComboFiltered(label, current_value, options, width)
         end
         imgui.EndPopup()
     end
-    return result, current_value == result
+    return result, current_value ~= result
 end
 
 ---Filter values to only include entries with the substring value, for use with ComboFiltered
